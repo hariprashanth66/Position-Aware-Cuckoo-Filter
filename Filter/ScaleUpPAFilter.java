@@ -11,6 +11,8 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 
 /**
@@ -193,12 +195,15 @@ public class ScaleUpPAFilter {
 
 		} else if (hashPosition == 2) {
 			int insertPos = secondPos;
+			
 			int posVal = (int) (filter[position].fingerprint[insertPos]);
+			
 			// if the current position is not empty, then all the cells in the
 			//bucket are occupied.
 			
 			if (posVal != 128)
 				return false;
+			
 
 			filter[position].fingerprint[insertPos] = fp;
 			// updating position cell once the element has been inserted in that location.
@@ -253,9 +258,13 @@ public class ScaleUpPAFilter {
 
 		int nextInsertPos = (int) (filter[elementKickedOutPos].fingerprint[4]) % 48;
 		if ((nextInsertPos != 45)) {
-			char tempFp = filter[elementKickedOutPos].fingerprint[nextInsertPos];
+			
+			Random rand = new Random();
+			//choosing random position 1 to insert the fingerprint
+			int randPos = rand.nextInt(nextInsertPos+1);
+			char tempFp = filter[elementKickedOutPos].fingerprint[randPos];
 
-			filter[elementKickedOutPos].fingerprint[nextInsertPos] = fp;
+			filter[elementKickedOutPos].fingerprint[randPos] = fp;
 
 			for (int i = 0; i < Max_Kicks; i++) {
 
@@ -267,7 +276,19 @@ public class ScaleUpPAFilter {
 				else {
 					int elementPosToBeKickedOut = (int) (filter[secondPosOfElementKickedOut].fingerprint[4]) % 48;
 					if ((elementPosToBeKickedOut != 45)) {
-						char currKickedOutElement = filter[secondPosOfElementKickedOut].fingerprint[elementPosToBeKickedOut];
+						//position are picked randomly
+						randPos = rand.nextInt(elementPosToBeKickedOut+1);
+						char currKickedOutElement = filter[secondPosOfElementKickedOut].fingerprint[randPos];
+						
+						if(randPos!=elementPosToBeKickedOut)
+						{
+							
+							char lastPos1FP = filter[secondPosOfElementKickedOut].fingerprint[elementPosToBeKickedOut];
+							
+							filter[secondPosOfElementKickedOut].fingerprint[randPos] = lastPos1FP;
+
+							
+						}
 
 						filter[secondPosOfElementKickedOut].fingerprint[elementPosToBeKickedOut] = tempFp;
 						int insertPos = elementPosToBeKickedOut;
@@ -277,13 +298,62 @@ public class ScaleUpPAFilter {
 						tempFp = currKickedOutElement;
 
 					} else
-						return false;
+					{
+						//calculate random position in a bucket full of pos 2
+						randPos = rand.nextInt(4);
+						//choose random position of 2 to insert current pos 2 element
+						char currKickedOutElement = filter[secondPosOfElementKickedOut].fingerprint[randPos];
+
+						//insert pos 2 element 
+						filter[secondPosOfElementKickedOut].fingerprint[randPos]  = tempFp;
+						
+						 //calculate first position of kicked out element
+						
+						int firstPosOfElementKickedOut = (calculatePosition(currKickedOutElement + "", hashAlgorithm) ^ secondPosOfElementKickedOut);
+
+						firstPosOfElementKickedOut = firstPosOfElementKickedOut % filterSize;
+						//try to insert into position 1
+						if (isInsertSucess(currKickedOutElement, firstPosOfElementKickedOut, 1))
+							return true;
+						else
+						{
+							
+							int secondPosPtr = (int) (filter[firstPosOfElementKickedOut].fingerprint[4]) % 48;
+							
+							if(secondPosPtr!=45)
+							{
+							
+								int randFirstPos = rand.nextInt(secondPosPtr+1);
+								
+								char firstEleKickout = filter[firstPosOfElementKickedOut].fingerprint[randFirstPos];
+								//element is inserted in first pos
+								filter[firstPosOfElementKickedOut].fingerprint[randFirstPos] = currKickedOutElement;
+								
+								
+								elementKickedOutPos = firstPosOfElementKickedOut;
+								tempFp = firstEleKickout;
+								
+							}else
+								
+								return false;
+
+							
+							
+							
+						}
+						
+						
+						
+						
+					}
+						
+						
 
 				}
 
 			}
 		}
-		System.out.println("Max Kicks reached");
+		//System.out.println("Max Kicks reached");
 		return false;
 
 	}
@@ -302,7 +372,7 @@ public class ScaleUpPAFilter {
  * @param prefix - number to be inserted into the filter.
  * 
  */
-	private void insertIntoFilter(long prefix) {
+	private boolean insertIntoFilter(long prefix) {
 		char fingerprint = generateFingerprint(prefix);
 
 		int pos1 = -1, pos2 = -1;
@@ -316,8 +386,12 @@ public class ScaleUpPAFilter {
 		pos2 = pos2 % filterSize;
 
 		if (!insertToLacf(fingerprint, pos1, pos2))
-			System.out.println(prefix);
-
+		{
+			//System.out.println(prefix);
+			return false;
+			
+		}
+        return true;
 	}
 
 	/** Method to read input random number file and convert it into long value 
@@ -325,19 +399,42 @@ public class ScaleUpPAFilter {
 	 * @param name - input file name
 	 * 
 	 */
-	public void insertInputFile(String name) throws IOException {
+	/*public void insertInputFile(String name) throws IOException {
 		BufferedReader buf = new BufferedReader(new FileReader(new File(name)));
 		String line = null;
+		List<Long> ipList = new ArrayList<Long>();
+		
+		int countToInsert = 0;
 		while ((line = buf.readLine()) != null) {
-
+			if(countToInsert<=ConfigPAFilter.ELEMENTS_TO_BE_INSERTED)
+			{
 			String ip = line.replaceAll("\n", "");
 
 			long prefix = Integer.parseInt(ip);
 
-			insertIntoFilter(prefix);
-
+			boolean status = insertIntoFilter(prefix);
+			countToInsert++;
+			if(!status)
+				break;
+		    }else
+		    	break;
 		}
 
+	}*/
+	
+	public void insertInputFile(List<Long> ipList) throws IOException {
+		
+		Random r = new Random();
+		int countToInsert = 0;
+		int start = r.nextInt(980000);
+		for(int i=start;i<ipList.size();i++)
+		{
+			boolean status = insertIntoFilter(ipList.get(i));
+			countToInsert++;
+			if(!status)
+				break;
+		}
+		
 	}
 
 	/**
@@ -451,9 +548,13 @@ public class ScaleUpPAFilter {
 
 		ArrayList<String> lookupList = new ArrayList<String>();
 		String line = null;
+		
+		
 		while ((line = buf.readLine()) != null) {
+			
 			line.replaceAll("\n", "");
 			lookupList.add(line);
+
 		}
 
 		for (String i : lookupList) {
@@ -478,12 +579,26 @@ public class ScaleUpPAFilter {
 
 		String FileName = ConfigPAFilter.Input_FileName;
 		filterObj.initializeFilter();
-		filterObj.insertInputFile(FileName);
+	//	filterObj.insertInputFile(FileName);
 		System.out.println("Total inserted entries " + filterObj.insertedCount);
 		String lookupFile = ConfigPAFilter.LookUp_FileName;
-		filterObj.lookup(lookupFile);
+		//filterObj.lookup(lookupFile);
 		System.out.println("False positive count is: " + filterObj.elementsInsertedCount);
 		System.out.println("Failure Count is: " + filterObj.elementsInsertFailCount);
+
+	}
+	
+	public int executeFilter(ScaleUpPAFilter filterObj,List<Long> ipList) throws IOException
+	{
+		filterObj.initializeFilter();
+		filterObj.insertInputFile(ipList);
+		//System.out.println("Total inserted entries " + filterObj.insertedCount);
+		//String lookupFile = ConfigPAFilter.LookUp_FileName;
+		//filterObj.lookup(lookupFile);
+		//System.out.println("False positive count is: " + filterObj.elementsInsertedCount);
+		//System.out.println("Failure Count is: " + filterObj.elementsInsertFailCount);
+		
+		return filterObj.insertedCount;
 
 	}
 }
