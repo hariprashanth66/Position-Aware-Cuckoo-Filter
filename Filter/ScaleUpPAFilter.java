@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-
 /**
  * This program implements Position-Aware Cuckoo Filter as well as standard
  * Cuckoo Filter and compare their results with one another in terms of False
@@ -52,62 +51,69 @@ public class ScaleUpPAFilter {
 	}
 
 	/**
-	 * Each bucket contains 5 cells range from 0 to 4. cells 0 to 3 store fingerprints of elements
-	 * and cell 4 called position cell, tracks number of elements inserted in their second position.
+	 * Each bucket contains 5 cells range from 0 to 4. cells 0 to 3 store
+	 * fingerprints of elements and cell 4 called position cell, tracks number
+	 * of elements inserted in their second position.
 	 * 
 	 * 
-	 *<P>Method to initialize first 4 cells (0,1,2,3) of each bucket with value "128". The
-	 * value "128" is chosen because in java, MD5 Hash value can range from 0 to
-	 * 127. So, inorder to detect empty cell or not, value 128 is chosen.
+	 * <P>
+	 * Method to initialize first 4 cells (0,1,2,3) of each bucket with value
+	 * "128". The value "128" is chosen because in java, MD5 Hash value can
+	 * range from 0 to 127. So, inorder to detect empty cell or not, value 128
+	 * is chosen.
 	 * 
 	 */
 	private void initializeFilter() {
 		for (int i = 0; i <= filterSize; i++) {
 			for (int j = 0; j < 4; j++) {
-				filter[i].fingerprint[j] = (128) & 255; // initializing with value 128
+				filter[i].fingerprint[j] = (char)4095;
+				//initializing with 4095 to mark empty cell for a fingerprint size of 12 bits.		
 														
+
 			}
 
 		}
 
 	}
 
-
 	/**
-	 *  Method to invoke hash algorithm and calculate the hash value 
-	 *  
-	 *  @param prefix -  number for which fingerprint is to be calculated.
-	 *  @param algorithm - MD5 or SHA1 algorithm to calculate hash value.  
-	 *  
-	 *  @return - string hash value.
-	 *  
-     */
+	 * Method to invoke hash algorithm and calculate the hash value
+	 * 
+	 * @param prefix
+	 *            - number for which fingerprint is to be calculated.
+	 * @param algorithm
+	 *            - MD5 or SHA1 algorithm to calculate hash value.
+	 * 
+	 * @return - string hash value.
+	 * 
+	 */
 	private String calculateHash(String prefix, String algorithm) {
 		MessageDigest digest;
 		try {
 			digest = MessageDigest.getInstance(algorithm);
 
-			byte[] hashedBytes = digest.digest(prefix.getBytes("UTF-8"));
+			byte[] hashedBytes = digest.digest(prefix.getBytes("UTF-8"));  
 			return convertByteArrtoString(hashedBytes);
 
 		} catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return null;
 	}
 
 	/**
-	 *  Method to convert byte array of the hash value into string value 
-	 *  @param  hashedVal - byte array of hash value calculated from Hash algorithm
-	 *  @return - string hash value.
-	 *  
-     */
+	 * Method to convert byte array of the hash value into string value
+	 * 
+	 * @param hashedVal
+	 *            - byte array of hash value calculated from Hash algorithm
+	 * @return - string hash value.
+	 * 
+	 */
 	private String convertByteArrtoString(byte[] hashedVal) {
 
 		StringBuilder build = new StringBuilder();
 		for (int i = 0; i < hashedVal.length; i++) {
-			build.append(Integer.toString((hashedVal[i] & 0xff) + 0x100, 16).substring(1));
+			build.append(Integer.toString((hashedVal[i] & 0xFF) + 0x100, 16).substring(1));
 		}
 		return build.toString();
 
@@ -117,26 +123,34 @@ public class ScaleUpPAFilter {
 	 * Method which takes input number and convert it into fingerprint of char
 	 * type.
 	 * 
-	 * @param prefix - number to be inserted into the filter.
+	 * @param prefix
+	 *            - number to be inserted into the filter.
 	 * @return - fingerprint character value.
 	 */
 	private char generateFingerprint(long prefix) {
 		String hashStr = calculateHash(String.valueOf(prefix), hashAlgorithm);
 		BigInteger val = new BigInteger(hashStr, 16);
 		int mappedValue = val.intValue();
-		mappedValue = (mappedValue & 0xFF) % 127;
+		mappedValue = (mappedValue & 0xFFF ) %4094;      
+		
+		if (mappedValue < 0) {
+			mappedValue = mappedValue * -1;
+		}
 		char fp = (char) mappedValue;
 		return fp;
 
 	}
 
 	/**
-	 * Method to calculate the position of the fingerprint where it can be inserted in the filter 
+	 * Method to calculate the position of the fingerprint where it can be
+	 * inserted in the filter
 	 * 
-	 *  @param prefix -  String value for which fingerprint is to be calculated.
-	 *  @param algorithm - MD5 or SHA1 algorithm to calculate hash value.  
-	 *  
-	 *  @return - bucker number in the filter.
+	 * @param prefix
+	 *            - String value for which fingerprint is to be calculated.
+	 * @param algorithm
+	 *            - MD5 or SHA1 algorithm to calculate hash value.
+	 * 
+	 * @return - bucker number in the filter.
 	 */
 
 	private int calculatePosition(String prefix, String algorithm) {
@@ -144,7 +158,7 @@ public class ScaleUpPAFilter {
 		BigInteger val = new BigInteger(hash, 16);
 		int mappedValue = val.intValue();
 
-		mappedValue = mappedValue % filterSize;
+		mappedValue =mappedValue  % filterSize;  
 		if (mappedValue < 0) {
 			mappedValue = mappedValue * -1;
 		}
@@ -156,15 +170,19 @@ public class ScaleUpPAFilter {
 	 * Method to check whether element is successfully inserted in the filter in
 	 * either of the two positions .
 	 * 
-	 * <P>In each bucket, elements for position 1 are inserted in the
-	 * following order indices: 0,1,2,3. Elements for position 2 are inserted in
-	 * the following order indices : 3,2,1,0. So, position cell( cell 4) is
+	 * <P>
+	 * In each bucket, elements for position 1 are inserted in the following
+	 * order indices: 0,1,2,3. Elements for position 2 are inserted in the
+	 * following order indices : 3,2,1,0. So, position cell( cell 4) is
 	 * initialized with value 3 and it decreases to 2,1,0 when the elements are
 	 * inserted in position 2.
 	 * 
-	 * @param fp - fingerprint of the number
-	 * @param position -  position value in the filter
-	 * @param hashPosition - position 1 or position 2 of the fingerprint.
+	 * @param fp
+	 *            - fingerprint of the number
+	 * @param position
+	 *            - position value in the filter
+	 * @param hashPosition
+	 *            - position 1 or position 2 of the fingerprint.
 	 * 
 	 * @return true - insert success. false - insert fail.
 	 */
@@ -177,15 +195,11 @@ public class ScaleUpPAFilter {
 		// then position cell value is decreased to -1 to indicate bucket is
 		// fully occupied.
 
-		if (secondPos == 45)
-			return false;
-
-		else if (hashPosition == 1) {
-
+		if (hashPosition == 1) {
 			for (int i = 0; i <= secondPos; i++) {
 				int posVal = (int) filter[position].fingerprint[i];
 				// if cell is empty, insert the fingerprint.
-				if (posVal == 128) {
+				if (posVal == 4095) { 
 					filter[position].fingerprint[i] = fp;
 					return true;
 				}
@@ -193,23 +207,33 @@ public class ScaleUpPAFilter {
 			}
 			return false;
 
-		} else if (hashPosition == 2) {
+		}
+
+		else if (secondPos == 2) // already 3 elements are occupied in 2nd
+									// posiition
+			return false;
+
+		else if (hashPosition == 2) {
+
+			
+			
 			int insertPos = secondPos;
-			
+
 			int posVal = (int) (filter[position].fingerprint[insertPos]);
-			
+
 			// if the current position is not empty, then all the cells in the
-			//bucket are occupied.
-			
-			if (posVal != 128)
+			// bucket are occupied.
+
+			if (posVal != 4095)
 				return false;
-			
 
 			filter[position].fingerprint[insertPos] = fp;
-			// updating position cell once the element has been inserted in that location.
+			// updating position cell once the element has been inserted in that
+			// location.
 			insertPos = insertPos - 1;
+
+			filter[position].fingerprint[4] = convertIntToChar(insertPos);
 			
-			filter[position].fingerprint[4] = convertIntToChar(insertPos); 
 
 		}
 
@@ -217,9 +241,11 @@ public class ScaleUpPAFilter {
 
 	}
 
-	/**method to convert the int value to ASCII value 
+	/**
+	 * method to convert the int value to ASCII value
 	 * 
-	 * @param val - int value
+	 * @param val
+	 *            - int value
 	 * @return ASCII value for the corresponding input int value.
 	 */
 	private char convertIntToChar(int val) {
@@ -230,9 +256,12 @@ public class ScaleUpPAFilter {
 	 * Method to check whether element is inserted into the filter. If not, it
 	 * will do kickOff and try to insert the element
 	 * 
-	 * @param fp - fingerprint of the element
-	 * @param pos1 - position 1 of the fingerprint in the filter
-	 * @param pos2 - position 2 of the fingerprint in the filter
+	 * @param fp
+	 *            - fingerprint of the element
+	 * @param pos1
+	 *            - position 1 of the fingerprint in the filter
+	 * @param pos2
+	 *            - position 2 of the fingerprint in the filter
 	 * 
 	 * @return boolean - Insert success or failure.
 	 */
@@ -241,119 +270,122 @@ public class ScaleUpPAFilter {
 		// Try to insert element in either of the two positions.
 		if (isInsertSucess(fp, pos1, 1))
 			return true;
-		if (isInsertSucess(fp, pos2, 2))
+		if (isInsertSucess(fp, pos2, 2)) 
 			return true;
 
 		/*
-		 * Since element insertion is full, it will start KickingOFF elements. It
-		 * will be done as, element from position 1 is removed ,say element "a"
-		 * and current element is inserted in position 1. Position 2 of element
-		 * "a" is calculated and try to insert it in the bucket. If that fails,
-		 * then position 1 element from the same bucket as element "a"'s second
-		 * position is removed and element "a" is inserted and its position cell is 
-		 * updated. Then this cycle follows till it reaches KickOFF limit.
+		 * Since element insertion is full, it will start KickingOFF elements.
+		 * It will be done as, element from position 1 is removed ,say element
+		 * "a" and current element is inserted in position 1. Position 2 of
+		 * element "a" is calculated and try to insert it in the bucket. If that
+		 * fails, then position 1 element from the same bucket as element "a"'s
+		 * second position is removed and element "a" is inserted and its
+		 * position cell is updated. Then this cycle follows till it reaches
+		 * KickOFF limit.
 		 */
 
-		int elementKickedOutPos = pos1;
+		int elementKickedOutPos = 0;
+		int hashPosofElement = 0;
+		int secHashPos = (int) (filter[elementKickedOutPos].fingerprint[4]) % 48;
+		char tempFp = '\0';
+		int nextInsertPos = 0;
+		// choosing random position to start kick off.
+		Random rand = new Random();
+		int pickPos = rand.nextInt(2);
+		if (pickPos == 0) {
+			elementKickedOutPos = pos1;
+			hashPosofElement = 1;
 
-		int nextInsertPos = (int) (filter[elementKickedOutPos].fingerprint[4]) % 48;
-		if ((nextInsertPos != 45)) {
-			
-			Random rand = new Random();
-			//choosing random position 1 to insert the fingerprint
-			int randPos = rand.nextInt(nextInsertPos+1);
-			char tempFp = filter[elementKickedOutPos].fingerprint[randPos];
+		} else {
+			elementKickedOutPos = pos2;
+			hashPosofElement = 2;
 
-			filter[elementKickedOutPos].fingerprint[randPos] = fp;
+		}
 
-			for (int i = 0; i < Max_Kicks; i++) {
+		for (int i = 0; i < Max_Kicks; i++) {
 
-				int secondPosOfElementKickedOut = (calculatePosition(tempFp + "", hashAlgorithm) ^ elementKickedOutPos);
+			if (hashPosofElement == 1) {
 
-				secondPosOfElementKickedOut = secondPosOfElementKickedOut % filterSize;
-				if (isInsertSucess(tempFp, secondPosOfElementKickedOut, 2))
-					return true;
-				else {
-					int elementPosToBeKickedOut = (int) (filter[secondPosOfElementKickedOut].fingerprint[4]) % 48;
-					if ((elementPosToBeKickedOut != 45)) {
-						//position are picked randomly
-						randPos = rand.nextInt(elementPosToBeKickedOut+1);
-						char currKickedOutElement = filter[secondPosOfElementKickedOut].fingerprint[randPos];
-						
-						if(randPos!=elementPosToBeKickedOut)
-						{
-							
-							char lastPos1FP = filter[secondPosOfElementKickedOut].fingerprint[elementPosToBeKickedOut];
-							
-							filter[secondPosOfElementKickedOut].fingerprint[randPos] = lastPos1FP;
+				nextInsertPos = 2;
+				// choosing random position to insert the fingerprint
+				int randPos = rand.nextInt(4);
+				// check to see if random pos is occupied by sec hash element
+				if (randPos > (secHashPos + 1)) {
+					tempFp = filter[elementKickedOutPos].fingerprint[randPos];
+					char toBeSwapedFP = filter[elementKickedOutPos].fingerprint[secHashPos + 1];
 
-							
-						}
+					// swapping the elements so that the 1 pos element can be
+					// inserted
+					filter[elementKickedOutPos].fingerprint[randPos] = toBeSwapedFP;
+					filter[elementKickedOutPos].fingerprint[secHashPos + 1] = fp;
+					// incrementing the value of position cell
+					int insertPos = secHashPos;
+					insertPos = insertPos + 1;
+					filter[elementKickedOutPos].fingerprint[4] = convertIntToChar(insertPos);
 
-						filter[secondPosOfElementKickedOut].fingerprint[elementPosToBeKickedOut] = tempFp;
-						int insertPos = elementPosToBeKickedOut;
-						insertPos = insertPos - 1;
-						filter[secondPosOfElementKickedOut].fingerprint[4] = convertIntToChar(insertPos);
-						elementKickedOutPos = secondPosOfElementKickedOut;
-						tempFp = currKickedOutElement;
+				} else {// if random position is occupied by 1 hash element
+					tempFp = filter[elementKickedOutPos].fingerprint[randPos];
+					filter[elementKickedOutPos].fingerprint[randPos] = fp;
 
-					} else
-					{
-						//calculate random position in a bucket full of pos 2
-						randPos = rand.nextInt(4);
-						//choose random position of 2 to insert current pos 2 element
-						char currKickedOutElement = filter[secondPosOfElementKickedOut].fingerprint[randPos];
+				}
 
-						//insert pos 2 element 
-						filter[secondPosOfElementKickedOut].fingerprint[randPos]  = tempFp;
-						
-						 //calculate first position of kicked out element
-						
-						int firstPosOfElementKickedOut = (calculatePosition(currKickedOutElement + "", hashAlgorithm) ^ secondPosOfElementKickedOut);
+			} else if (hashPosofElement == 2) {
+				nextInsertPos = 1;
+				int randPos = 0;
+				// choosing between 3 elements .
+				if (secHashPos == 2) {
+					int max = 3;
+					int min = 1;
+					//randPos = rand.nextInt((max - min) + 1) + min;
+					 randPos = 3;
 
-						firstPosOfElementKickedOut = firstPosOfElementKickedOut % filterSize;
-						//try to insert into position 1
-						if (isInsertSucess(currKickedOutElement, firstPosOfElementKickedOut, 1))
-							return true;
-						else
-						{
-							
-							int secondPosPtr = (int) (filter[firstPosOfElementKickedOut].fingerprint[4]) % 48;
-							
-							if(secondPosPtr!=45)
-							{
-							
-								int randFirstPos = rand.nextInt(secondPosPtr+1);
-								
-								char firstEleKickout = filter[firstPosOfElementKickedOut].fingerprint[randFirstPos];
-								//element is inserted in first pos
-								filter[firstPosOfElementKickedOut].fingerprint[randFirstPos] = currKickedOutElement;
-								
-								
-								elementKickedOutPos = firstPosOfElementKickedOut;
-								tempFp = firstEleKickout;
-								
-							}else
-								
-								return false;
+				} else if (secHashPos > 2) {
 
-							
-							
-							
-						}
-						
-						
-						
-						
+					randPos = rand.nextInt(4);
+				}
+
+				// random is occupied by 2 hash pos element.
+				if (randPos > secHashPos) {// swapping current 2 hash pos
+											// element with new one.
+					tempFp = filter[elementKickedOutPos].fingerprint[randPos];
+					filter[elementKickedOutPos].fingerprint[randPos] = fp;
+				} else {
+
+					tempFp = filter[elementKickedOutPos].fingerprint[randPos];
+
+					if (randPos != secHashPos) {
+						char toBeSwapedFP = filter[elementKickedOutPos].fingerprint[secHashPos];
+
+						// swapping the elements so that the 2 pos element can
+						// be inserted
+						filter[elementKickedOutPos].fingerprint[randPos] = toBeSwapedFP;
 					}
-						
-						
+					filter[elementKickedOutPos].fingerprint[secHashPos] = fp;
+					// decrementing the value of position cell
+					int insertPos = secHashPos;
+					insertPos = insertPos - 1;
+					filter[elementKickedOutPos].fingerprint[4] = convertIntToChar(insertPos);
 
 				}
 
 			}
+
+			int nextPosOfKickedoutElement = (calculatePosition(tempFp + "", hashAlgorithm) ^ elementKickedOutPos);
+
+			nextPosOfKickedoutElement = nextPosOfKickedoutElement % filterSize;
+
+			if (isInsertSucess(tempFp, nextPosOfKickedoutElement, nextInsertPos))
+				return true;
+			else {
+				hashPosofElement = nextInsertPos;
+				fp = tempFp;
+				elementKickedOutPos = nextPosOfKickedoutElement;
+
+			}
+
 		}
-		//System.out.println("Max Kicks reached");
+
+		// System.out.println("Max Kicks reached");
 		return false;
 
 	}
@@ -367,11 +399,14 @@ public class ScaleUpPAFilter {
 		return false;
 
 	}
-/**
- *  Method to calculate two positions in the filter for the number .
- * @param prefix - number to be inserted into the filter.
- * 
- */
+
+	/**
+	 * Method to calculate two positions in the filter for the number .
+	 * 
+	 * @param prefix
+	 *            - number to be inserted into the filter.
+	 * 
+	 */
 	private boolean insertIntoFilter(long prefix) {
 		char fingerprint = generateFingerprint(prefix);
 
@@ -385,64 +420,46 @@ public class ScaleUpPAFilter {
 
 		pos2 = pos2 % filterSize;
 
-		if (!insertToLacf(fingerprint, pos1, pos2))
-		{
-			//System.out.println(prefix);
+		if (!insertToLacf(fingerprint, pos1, pos2)) {
+			// System.out.println(prefix);
 			return false;
-			
+
 		}
-        return true;
+		return true;
 	}
 
-	/** Method to read input random number file and convert it into long value 
+	/**
+	 * Method to read input file containing random numbers and insert it into the filter
 	 * 
-	 * @param name - input file name
+	 * @param ipList - List containing random numbers
+	 *          
 	 * 
 	 */
-	/*public void insertInputFile(String name) throws IOException {
-		BufferedReader buf = new BufferedReader(new FileReader(new File(name)));
-		String line = null;
-		List<Long> ipList = new ArrayList<Long>();
-		
-		int countToInsert = 0;
-		while ((line = buf.readLine()) != null) {
-			if(countToInsert<=ConfigPAFilter.ELEMENTS_TO_BE_INSERTED)
-			{
-			String ip = line.replaceAll("\n", "");
-
-			long prefix = Integer.parseInt(ip);
-
-			boolean status = insertIntoFilter(prefix);
-			countToInsert++;
-			if(!status)
-				break;
-		    }else
-		    	break;
-		}
-
-	}*/
 	
+
 	public void insertInputFile(List<Long> ipList) throws IOException {
-		
+
 		Random r = new Random();
 		int countToInsert = 0;
-		int start = r.nextInt(980000);
-		for(int i=start;i<ipList.size();i++)
-		{
+		int start = r.nextInt(98000);
+		for (int i = start; i < ipList.size(); i++) {
 			boolean status = insertIntoFilter(ipList.get(i));
 			countToInsert++;
-			if(!status)
+			if (!status)
 				break;
 		}
-		
+
 	}
 
 	/**
 	 * Method to check whether particular fingerprint is found in the bucket
 	 * 
-	 * @param fp - fingerprint of the number
-	 * @param position -  position value in the filter
-	 * @param hashPosition - position 1 or position 2 of the fingerprint.
+	 * @param fp
+	 *            - fingerprint of the number
+	 * @param position
+	 *            - position value in the filter
+	 * @param hashPosition
+	 *            - position 1 or position 2 of the fingerprint.
 	 * 
 	 * @return true - insert success. false - insert fail.
 	 */
@@ -480,8 +497,9 @@ public class ScaleUpPAFilter {
 
 			for (int i = 0; i <= end; i++) {
 				int posVal = (int) (filter[position].fingerprint[i]);
+				//System.out.println("check empty cell "+posVal);
 				// checking whether it is empty cell .
-				if (posVal != 128) {
+				if (posVal != 4095) { //changed for 12 bits
 					if (filter[position].fingerprint[i] == fp)
 						return true;
 				} else
@@ -506,7 +524,8 @@ public class ScaleUpPAFilter {
 	 * Method to search whether the number is present in the filter
 	 * 
 	 * 
-	 * @param prefix - number to be searched
+	 * @param prefix
+	 *            - number to be searched
 	 * @return boolean - True- number present, False - number not present
 	 */
 	private boolean searchInFilter(long prefix) {
@@ -542,20 +561,9 @@ public class ScaleUpPAFilter {
 
 	}
 
-	private void lookup(String file) throws IOException {
+	private void lookup(List<String> lookupList) throws IOException {
 
-		BufferedReader buf = new BufferedReader(new FileReader(new File(file)));
-
-		ArrayList<String> lookupList = new ArrayList<String>();
-		String line = null;
-		
-		
-		while ((line = buf.readLine()) != null) {
-			
-			line.replaceAll("\n", "");
-			lookupList.add(line);
-
-		}
+	
 
 		for (String i : lookupList) {
 			long prefix = Integer.parseInt(i);
@@ -569,36 +577,34 @@ public class ScaleUpPAFilter {
 
 	}
 
-	/** Main method execution begins here.
-	 * 
+	/**
+	 * Main method execution begins here. Note : Use PrintInsertCount.java file
+	 * to run either PAFilter or standard filter. Avoid running from this main
+	 * method.
 	 *
-	 * @throws IOException - if the input file is not found.
+	 * @throws IOException
+	 *             - if the input file is not found.
 	 */
 	public static void main(String[] args) throws IOException {
 		ScaleUpPAFilter filterObj = new ScaleUpPAFilter();
 
 		String FileName = ConfigPAFilter.Input_FileName;
 		filterObj.initializeFilter();
-	//	filterObj.insertInputFile(FileName);
 		System.out.println("Total inserted entries " + filterObj.insertedCount);
 		String lookupFile = ConfigPAFilter.LookUp_FileName;
-		//filterObj.lookup(lookupFile);
 		System.out.println("False positive count is: " + filterObj.elementsInsertedCount);
 		System.out.println("Failure Count is: " + filterObj.elementsInsertFailCount);
 
 	}
-	
-	public int executeFilter(ScaleUpPAFilter filterObj,List<Long> ipList) throws IOException
-	{
+
+	public int[] executeFilter(ScaleUpPAFilter filterObj, List<Long> ipList, List<String> lookupList) throws IOException {
 		filterObj.initializeFilter();
 		filterObj.insertInputFile(ipList);
-		//System.out.println("Total inserted entries " + filterObj.insertedCount);
-		//String lookupFile = ConfigPAFilter.LookUp_FileName;
-		//filterObj.lookup(lookupFile);
-		//System.out.println("False positive count is: " + filterObj.elementsInsertedCount);
-		//System.out.println("Failure Count is: " + filterObj.elementsInsertFailCount);
-		
-		return filterObj.insertedCount;
+		filterObj.lookup(lookupList);
+		int[] result = new int[2];
+		result[0] = filterObj.insertedCount;
+		result[1] = filterObj.elementsInsertedCount;
+		return result;
 
 	}
 }
